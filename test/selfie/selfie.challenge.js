@@ -47,7 +47,8 @@ describe('[Challenge] Selfie', function () {
             player.address
         );
         await attacker.getLoan();
-        await helpers.time.increase(3 * 24 * 60 * 60);
+        await ethers.provider.send("evm_increaseTime", [3 * 24 * 60 * 60]);
+        // await helpers.time.increase(3 * 24 * 60 * 60);
         await attacker.execute();
     });
 
